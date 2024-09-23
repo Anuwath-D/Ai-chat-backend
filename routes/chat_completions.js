@@ -127,7 +127,7 @@ router.post('/', async (req, res, next) => {
         chatHistory.push({ role: "model", parts: [{ text: result.response.text() }] });
         save_chat = { role: "model", text: result.response.text(), timestamp: new Date(), type: type, imagename: imagename };
         saveToDB(save_chat, uid, type_chat)
-        // console.log('response', result.response.text());
+        console.log('response', result.response.text());
         const text = result.response.text()
         console.log('chat', chat);
         // let msg = text.split('\n')
