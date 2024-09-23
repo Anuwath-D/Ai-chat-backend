@@ -76,7 +76,7 @@ router.post('/', async (req, res, next) => {
     const type = req.body.type
     const type_chat = req.body.type_chat
     const imagename = ''
-    // console.log('uid : ', uid);
+    console.log('uid : ', uid);
     // // เพิ่มข้อความใหม่เข้าไปใน chatHistory
     if (uid) {
         // console.log('chat.params.history',chat.params.history[1].parts[0]);
