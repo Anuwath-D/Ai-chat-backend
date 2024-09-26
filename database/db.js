@@ -17,13 +17,13 @@ let sequelize = new Sequelize(
 
 sequelize.authenticate().then(() => {
   console.log(`Connected to postgres => localhost:5432`);
-  // sequelize.sync({ force: true })
-  //     .then(() => {
-  //         console.log('Database synchronized');
-  //     })
-  //     .catch((err) => {
-  //         console.error('Error syncing database:', err);
-  //     });
+  sequelize.sync({ alter: true })
+      .then(() => {
+          console.log('Database synchronized');
+      })
+      .catch((err) => {
+          console.error('Error syncing database:', err);
+      });
 }).catch(err => {
   console.error('Unable to connect to the database:', err);
 });

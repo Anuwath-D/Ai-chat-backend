@@ -8,15 +8,28 @@ const initModels = require('../model_db/init_models');
 // uploadfile
 const multer = require('multer')
 let imageTODBname = ''
+let fileTODBname = ''
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
-        callback(null, 'uploads') // folder ที่เราต้องการเก็บไฟล์
+        if ((file.originalname.split('.').pop()) === 'pdf') {
+            callback(null, 'upload_files') // folder ที่เราต้องการเก็บไฟล์
+        } else {
+            callback(null, 'upload_images') // folder ที่เราต้องการเก็บไฟล์
+        }
+
+
     },
     filename: function (req, file, callback) {
-        const uniqueKey = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        const img_name = 'Images' + '-' + uniqueKey + '.jpg'
-        imageTODBname = img_name
-        callback(null, img_name) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
+        if ((file.originalname.split('.').pop()) === 'pdf') {
+            fileTODBname = file.originalname
+            callback(null, fileTODBname) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
+        } else {
+            const uniqueKey = Date.now() + '-' + Math.round(Math.random() * 1E9)
+            const img_name = 'Images' + '-' + uniqueKey + '.jpg'
+            imageTODBname = img_name
+            callback(null, img_name) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
+        }
+
     },
 })
 const upload = multer({ storage })
@@ -25,10 +38,11 @@ function fileToGenerativePart(path, mimeType) {
     return {
         inlineData: {
             data: Buffer.from(fs.readFileSync(path)).toString("base64"),
-            mimeType,
+            mimeType
         },
     };
 }
+
 
 async function saveToDB(save_chat, uid, type_chat) {
     console.log('save_chat', save_chat);
@@ -49,7 +63,6 @@ async function saveToDB(save_chat, uid, type_chat) {
 // Initialize models
 const models = initModels();
 const { transaction } = models;
-
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
@@ -106,27 +119,17 @@ router.post('/', async (req, res, next) => {
 
     try {
         chatHistory.push({ role: "user", parts: [{ text: message_req }] });
-        save_chat = { role: "user", text: message_req, timestamp: new Date(), type: type, imagename: imagename };
-        saveToDB(save_chat, uid, type_chat)
-        // console.log('chatHistory', chatHistory);
-        for (const arr of chat.params.history) {
-            // console.log(`history`, arr);
-            // console.log(`chatHistory_${idx}`, arr.parts[0]);
-        }
-
-
-
-        // console.log('chatHistory_1', chatHistory[1].parts);
-        // console.log('chatHistory_2', chatHistory[2].parts);
-        // console.log('chat', chat);
-
         // // ส่งข้อความไปยังโมเดล
         const result = await chat.sendMessage(message_req);
-
         // // เพิ่มคำตอบของโมเดลเข้าไปใน chatHistory
         chatHistory.push({ role: "model", parts: [{ text: result.response.text() }] });
+
+        save_chat = { role: "user", text: message_req, timestamp: new Date(), type: type, imagename: imagename };
+        saveToDB(save_chat, uid, type_chat)
+
         save_chat = { role: "model", text: result.response.text(), timestamp: new Date(), type: type, imagename: imagename };
         saveToDB(save_chat, uid, type_chat)
+
         console.log('response', result.response.text());
         const text = result.response.text()
         console.log('chat', chat);
@@ -214,43 +217,8 @@ router.post('/', async (req, res, next) => {
 
 });
 
-// router.post('/save', async (req, res, next) => {
-    // console.log('save_chat', save_chat);
-    // console.log('req', req.body);
-    // console.log('req.body.messages : ', req.body.messages);
-    // let status = req.body.messages
-    // let uid = req.body.uid
-    // let uid_chat = JSON.stringify(new Date().getTime())
-    // try {
-    //     if (status == 'END' && save_chat) {
-    //         for (const chatdata of save_chat) {
-    //             await transaction.create({                       //สร้างข้อมูล
-    //                 "id": JSON.stringify(new Date().getTime()),
-    //                 "uid": uid ? uid : uid_chat,
-    //                 "role": chatdata.role,
-    //                 "content": chatdata.text,
-    //                 "timestamp": chatdata.timestamp,
-    //                 "type": chatdata.type,
-    //                 "imagename": chatdata.imagename ? chatdata.imagename : '',
 
-    //             })
-
-    //         }
-    //         fs.writeFileSync('output.yaml', '', 'utf8');
-    //         chatHistory = [];
-    //         save_chat = [];
-    //         chat.params.history = []
-    //         chat._history = []
-    //     }
-
-    //     res.status(200).json({ msg: 'success to create transaction' });
-    // } catch (error) {
-    //     console.error('Error:', error);
-    //     res.status(500).json({ error: 'Failed to create transaction' });
-    // }
-// });
-
-router.post('/upload', upload.single('photo'), async (req, res) => {
+router.post('/upload_images', upload.single('photo'), async (req, res) => {
     // console.log('text', req.body.text);
 
     const prompt = req.body.text;
@@ -259,15 +227,10 @@ router.post('/upload', upload.single('photo'), async (req, res) => {
     const type_chat = req.body.type_chat
     // Note: The only accepted mime types are some image types, image/*.
     const imagePart = fileToGenerativePart(
-        `uploads/${imageTODBname}`,
+        `upload_images/${imageTODBname}`,
         "image/jpeg",
     );
-    if (type === 'imageandtext') {
-        save_chat = { role: "user", text: '', timestamp: new Date(), type: type, imagename: imageTODBname };
-        saveToDB(save_chat, uid, type_chat)
-    }
-    save_chat = { role: "user", text: prompt, timestamp: new Date(), type: type, imagename: '' };
-    saveToDB(save_chat, uid, type_chat)
+
 
 
     const result = await model.generateContent([prompt, imagePart]);
@@ -276,8 +239,18 @@ router.post('/upload', upload.single('photo'), async (req, res) => {
 
     // console.log(result.response.text());
     let data = result.response.text()
+
+    if (type === 'imageandtext') {
+        save_chat = { role: "user", text: '', timestamp: new Date(), type: type, imagename: imageTODBname };
+        saveToDB(save_chat, uid, type_chat)
+    }
+    save_chat = { role: "user", text: prompt, timestamp: new Date(), type: type, imagename: '' };
+    saveToDB(save_chat, uid, type_chat)
+
+
     save_chat = { role: "model", text: data, timestamp: new Date(), type: type, imagename: '' };
     saveToDB(save_chat, uid, type_chat)
+
     res.json(
         {
             error: false,
@@ -285,6 +258,60 @@ router.post('/upload', upload.single('photo'), async (req, res) => {
             data: data
         }
     )
+})
+
+router.post('/upload_files', upload.single('file'), async (req, res) => {
+    // console.log('text', req.body.text);
+
+    const prompt = req.body.text;
+    // const type = req.body.type;
+    // const uid = req.body.uid;
+    // const type_chat = req.body.type_chat
+    const file_name = req.body.file_name
+    fileTODBname = file_name
+    if (prompt) {
+
+        // Note: The only accepted mime types are some image types, image/*.
+        const filePart = fileToGenerativePart(
+            `upload_files/${fileTODBname}`,
+            "application/pdf",
+        );
+
+        const imageParts = [
+            filePart
+        ];
+
+
+        const result = await model.generateContent([prompt, imageParts]);
+
+        // console.log('chat', chat);
+
+        console.log(result.response.text());
+        let data = result.response.text()
+
+        // if (type === 'imageandtext') {
+        //     save_chat = { role: "user", text: '', timestamp: new Date(), type: type, imagename: imageTODBname };
+        //     saveToDB(save_chat, uid, type_chat)
+        // }
+        // save_chat = { role: "user", text: prompt, timestamp: new Date(), type: type, imagename: '' };
+        // saveToDB(save_chat, uid, type_chat)
+
+
+        // save_chat = { role: "model", text: data, timestamp: new Date(), type: type, imagename: '' };
+        // saveToDB(save_chat, uid, type_chat)
+
+        res.json(
+            {
+                error: false,
+                // total_chat : text.length,
+                data: data,
+                file_name: fileTODBname
+            }
+        )
+    }else{
+        res.json({ message: "Upload File Success"});
+    }
+
 })
 
 module.exports = router;
