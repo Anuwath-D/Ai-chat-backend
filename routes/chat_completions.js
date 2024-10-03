@@ -182,7 +182,7 @@ router.post('/', verifyToken , async (req, res) => {
 });
 
 
-router.post('/upload_images', upload.single('photo'), async (req, res) => {
+router.post('/upload_images', verifyToken, upload.single('photo'), async (req, res) => {
 
     // ตรวจสอบว่า api_key ถูกส่งมา
     if (!req.body.api_key) {
@@ -231,7 +231,7 @@ router.post('/upload_images', upload.single('photo'), async (req, res) => {
     )
 })
 
-router.post('/upload_files', upload.single('file'), async (req, res) => {
+router.post('/upload_files', verifyToken, upload.single('file'), async (req, res) => {
     // console.log('text', req.body.text);
 
     // ตรวจสอบว่า api_key ถูกส่งมา

@@ -17,8 +17,33 @@ function fileToGenerativePart(path, mimeType) {
     };
 }
 
+// middleware สำหรับตรวจสอบ token
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    
+    // ตรวจสอบว่า authHeader มีค่าหรือไม่ และเป็น Bearer token หรือไม่
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'ไม่มี token หรือรูปแบบ token ไม่ถูกต้อง กรุณาเข้าสู่ระบบ' });
+    }
 
-router.get('/header', async (req, res, next) => {
+    // ดึง token ออกมาจาก authHeader โดยเอาส่วน Bearer ออก
+    const token = authHeader.split(' ')[1];
+    // console.log("token", token);
+
+    try {
+        // ตรวจสอบและ decode token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // ใส่ข้อมูลผู้ใช้จาก token เข้าไปใน request เพื่อใช้ใน endpoint ต่อไป
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({ message: 'token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' });
+    }
+};
+
+
+router.get('/header', verifyToken, async (req, res, next) => {
     try {
         const whereCondition = {};
         // ค้นหาข้อมูล
@@ -79,7 +104,7 @@ router.get('/header', async (req, res, next) => {
 
 });
 
-router.get('/detail', async function (req, res, next) {    //verrify auth เพื่อตรวจสอบ Token
+router.get('/detail', verifyToken, async function (req, res, next) {    //verrify auth เพื่อตรวจสอบ Token
     try {
         const uid = req.query;
         console.log('uid', uid);
@@ -140,7 +165,7 @@ router.get('/detail', async function (req, res, next) {    //verrify auth เพ
     }
 });
 
-router.get('/files', async (req, res, next) => {
+router.get('/files', verifyToken, async (req, res, next) => {
 
     let data_flie = []
 
@@ -187,7 +212,7 @@ router.get('/files', async (req, res, next) => {
 });
 
 // API สำหรับลบไฟล์ตามชื่อที่ส่งมา
-router.delete('/files/delete', (req, res) => {
+router.delete('/files/delete', verifyToken, (req, res) => {
     // const fileName = req.params.fileName;
     const { fileName } = req.query;
     console.log('fileName',fileName);
