@@ -14,7 +14,7 @@ module.exports = function () {
       type: DataTypes.STRING,
     },
     content: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
     },
     timestamp: {
       type: DataTypes.DATE, // Use Sequelize.DATE for timestamps

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const initModels = require('../model_db/init_models');
+const path = require('path');
 
 // Initialize models
 const models = initModels();
@@ -22,7 +23,7 @@ router.get('/header', async (req, res, next) => {
         const whereCondition = {};
         // ค้นหาข้อมูล
         const response = await transaction.findAll({
-            attributes: ["uid", "content", "type", "timestamp" , "type_chat"],
+            attributes: ["uid", "content", "type", "timestamp", "type_chat"],
             // where: whereCondition,
             order: [['timestamp', 'DESC']],
             // limit: 1
@@ -55,7 +56,7 @@ router.get('/header', async (req, res, next) => {
         for (const arr of formattedResponse) {
             let data = {
                 uid: arr.uid,
-                content: arr.content[arr.content.length - 1] ? arr.content[arr.content.length - 1]:arr.content[arr.content.length - 2],
+                content: arr.content[arr.content.length - 1] ? arr.content[arr.content.length - 1] : arr.content[arr.content.length - 2],
                 type: arr.type[arr.type.length - 1],
                 timestamp: arr.timestamp[arr.timestamp.length - 1],
                 type_chat: arr.type_chat[arr.type_chat.length - 1]
@@ -66,7 +67,7 @@ router.get('/header', async (req, res, next) => {
         res.json(
             {
                 error: false,
-                total_chat: formattedResponse.length,
+                total_chat: resdata.length,
                 data: resdata
             }
         )
@@ -97,7 +98,7 @@ router.get('/detail', async function (req, res, next) {    //verrify auth เพ
 
             if (arr.imagename) {
                 const imagePart = fileToGenerativePart(
-                    `uploads/${arr.imagename}`,
+                    `upload_images/${arr.imagename}`,
                     "image/jpeg",
                 );
                 console.log('imagePart', imagePart.inlineData.data);
@@ -110,7 +111,7 @@ router.get('/detail', async function (req, res, next) {    //verrify auth เพ
                     type: arr.type,
                     imagetobase64: imagePart.inlineData.data,
                 })
-            }else{
+            } else {
                 arrdata.push({
                     id: arr.id,
                     uid: arr.uid,
@@ -138,5 +139,76 @@ router.get('/detail', async function (req, res, next) {    //verrify auth เพ
 
     }
 });
+
+router.get('/files', async (req, res, next) => {
+
+    let data_flie = []
+
+    try {
+        // ระบุพาธไปยังโฟลเดอร์ upload
+        const uploadDir = path.join(__dirname, '../upload_files');
+
+        // อ่านรายการไฟล์ในโฟลเดอร์
+        fs.readdir(uploadDir, (err, files) => {
+            if (err) {
+                console.error('ไม่สามารถอ่านโฟลเดอร์:', err);
+                return;
+            }
+
+            // แสดงชื่อไฟล์ทั้งหมดที่อยู่ในโฟลเดอร์
+            files.forEach(file => {
+                console.log(file);
+                // data_flie.push(file)
+            });
+            let body = {}
+            let arrfile = []
+            for (const arr of files) {
+                body = {
+                    file_name: arr
+                }
+                arrfile.push(body)
+            }
+            data_flie = arrfile
+            console.log('data_flie', data_flie);
+
+            res.json(
+                {
+                    error: false,
+                    total_flies: data_flie.length,
+                    data: data_flie
+                }
+            )
+        });
+
+    } catch (error) {
+        res.status(500).send({ msg: 'something went wrong!!!' });
+    }
+
+});
+
+// API สำหรับลบไฟล์ตามชื่อที่ส่งมา
+router.delete('/files/delete', (req, res) => {
+    // const fileName = req.params.fileName;
+    const { fileName } = req.query;
+    console.log('fileName',fileName);
+    
+    const uploadDir = path.join(__dirname, '../upload_files');
+    const filePath = path.join(uploadDir, fileName);
+    
+    // ตรวจสอบว่าไฟล์มีอยู่หรือไม่ก่อนลบ
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+      if (err) {
+        return res.status(404).json({ error: 'ไฟล์ไม่พบ' });
+      }
+  
+      // ลบไฟล์
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          return res.status(500).json({ error: 'ไม่สามารถลบไฟล์ได้' });
+        }
+        res.json({ message: `ลบไฟล์ ${fileName} เรียบร้อยแล้ว` });
+      });
+    });
+  });
 
 module.exports = router;

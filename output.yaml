@@ -1,8 +1,7 @@
 - role: user
   parts:
-    - text: I'm fine
+    - text: hello
 - role: model
   parts:
-    - text: >
-        Okay, I understand. It sounds like you're doing well, which is always
-        good to hear! Is there anything else you'd like to share? 
+    - text: |
+        Hello there! What can I do for you today? 
