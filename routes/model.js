@@ -10,24 +10,46 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 router.use(express.json());
+const model = null;
+const llm = null;
 
-const model = new GoogleGenerativeAIEmbeddings({
-  apiKey: process.env.API_KEY,
-  modelName: "embedding-001",
-});
 
-const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-1.5-flash",
-  temperature: 0,
-  maxRetries: 2,
-  apiKey: process.env.API_KEY,
-});
+// const model = new GoogleGenerativeAIEmbeddings({
+//   apiKey: process.env.API_KEY,
+//   modelName: "embedding-001",
+// });
+
+// const llm = new ChatGoogleGenerativeAI({
+//   model: "gemini-1.5-flash",
+//   temperature: 0,
+//   maxRetries: 2,
+//   apiKey: process.env.API_KEY,
+// });
 
 const txtFilename = "player";
 const txtPath = `./${txtFilename}.txt`;
 const VECTOR_STORE_PATH = `${txtFilename}.index`;
 
 router.post('/', async (req, res) => {
+    // ตรวจสอบว่า api_key ถูกส่งมา
+    if (!req.body.api_key) {
+        return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+
+    const api_key = req.body.api_key;
+
+    model = new GoogleGenerativeAIEmbeddings({
+        apiKey: api_key,
+        modelName: "embedding-001",
+    });
+    
+    llm = new ChatGoogleGenerativeAI({
+        model: "gemini-1.5-flash",
+        temperature: 0,
+        maxRetries: 2,
+        apiKey: api_key,
+    });
+
     try {
         const question = req.body.question;
         console.log("question", question);
@@ -43,6 +65,9 @@ router.post('/', async (req, res) => {
 });
 
 async function runWithEmbeddings(question) {
+    console.log("model",model);
+    console.log("llm",llm);
+    
     let vectorStore;
     let documentAnswer = null;
     let geminiResponse = null;

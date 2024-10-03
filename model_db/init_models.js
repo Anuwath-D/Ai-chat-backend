@@ -1,7 +1,9 @@
 var _transaction = require("./transaction");
+var _username = require("./username");
 
 function initModels() {
   var transaction = _transaction();
+  var username = _username();
 
   // production_category.belongsTo(material_category, { as: "id_material_category_material_category", foreignKey: "id_material_category"});
   // material_category.hasMany(production_category, { as: "production_categories", foreignKey: "id_material_category"});
@@ -10,6 +12,7 @@ function initModels() {
 
   return {
     transaction,
+    username
   };
 }
 
