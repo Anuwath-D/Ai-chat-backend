@@ -11,15 +11,29 @@ let imageTODBname = ''
 let fileTODBname = ''
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
-        if ((file.originalname.split('.').pop()) === 'pdf') {
-            callback(null, 'upload_files') // folder ที่เราต้องการเก็บไฟล์
+
+        const pdfDirectory = 'upload_files'; 
+        const imagesDirectory = 'upload_images';
+        const fileExtension = file.originalname.split('.').pop();
+        console.log('file.originalname',file.originalname);
+        if (fileExtension === 'pdf' || fileExtension === 'txt') {
+            
+            if (!fs.existsSync(pdfDirectory)) {
+                fs.mkdirSync(pdfDirectory, { recursive: true }); 
+            }
+            callback(null, pdfDirectory); 
         } else {
-            callback(null, 'upload_images') // folder ที่เราต้องการเก็บไฟล์
+            // Check if the 'upload_images' folder exists, create it if not
+            if (!fs.existsSync(imagesDirectory)) {
+                fs.mkdirSync(imagesDirectory, { recursive: true }); // create directory if it doesn't exist
+            }
+            callback(null, imagesDirectory); // store images in 'upload_images' folder
         }
 
     },
     filename: function (req, file, callback) {
-        if ((file.originalname.split('.').pop()) === 'pdf') {
+        const fileExtension = file.originalname.split('.').pop();
+        if (fileExtension === 'pdf' || fileExtension === 'txt') {
             fileTODBname = file.originalname
             callback(null, fileTODBname) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
         } else {
@@ -237,11 +251,11 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
 
     try {
         if (prompt) {
-
+            
             // Note: The only accepted mime types are some image types, image/*.
             const filePart = fileToGenerativePart(
                 `upload_files/${fileTODBname}`,
-                "application/pdf",
+                (fileTODBname.split('.').pop()) === 'pdf'? "application/pdf":"text/plain" ,
             );
 
             const imageParts = [
