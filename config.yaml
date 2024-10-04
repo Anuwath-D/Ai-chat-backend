@@ -1,9 +1,0 @@
-model: buildtest
-clients:
-- type: openai-compatible
-  name: buildtest
-  api_base: http://localhost:3000/api/v1
-  api_key: null
-  models:
-  - name: test
-    max_input_tokens: 8192

@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
+const path = require('path');
 const jwt = require('jsonwebtoken');
+const mime = require('mime-types')
 
 const initModels = require('../model_db/init_models');
 
@@ -11,7 +13,8 @@ let imageTODBname = ''
 let fileTODBname = ''
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
-        if ((file.originalname.split('.').pop()) === 'pdf') {
+        const originalname = file.originalname.split('.').pop();
+        if (originalname === 'pdf' || originalname === 'txt') {
             callback(null, 'upload_files') // folder ที่เราต้องการเก็บไฟล์
         } else {
             callback(null, 'upload_images') // folder ที่เราต้องการเก็บไฟล์
@@ -19,7 +22,8 @@ const storage = multer.diskStorage({
 
     },
     filename: function (req, file, callback) {
-        if ((file.originalname.split('.').pop()) === 'pdf') {
+        const originalname = file.originalname.split('.').pop();
+        if (originalname === 'pdf' || originalname === 'txt') {
             fileTODBname = file.originalname
             callback(null, fileTODBname) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
         } else {
@@ -71,6 +75,8 @@ let model = null;
 // สร้าง Array เพื่อเก็บประวัติการสนทนา
 let chatHistory = [];
 let save_chat = []
+// สร้าง array สำหรับ imageParts
+let filesParts = [];
 
 // middleware สำหรับตรวจสอบ token
 async function verifyToken(req, res, next) {
@@ -115,6 +121,40 @@ async function verifyToken(req, res, next) {
     }
 };
 
+async function readFloder(req, res, next) {
+    // อ่านไฟล์ทั้งหมดในโฟลเดอร์ upload_files
+    const uploadDir = 'upload_files';
+
+    // ใช้ fs.readdirSync เพื่ออ่านชื่อไฟล์ในโฟลเดอร์
+    const files = fs.readdirSync(uploadDir);
+
+    try {
+
+        files.forEach((file, index) => {
+            // สร้าง path สำหรับไฟล์
+            const filePath = path.join(uploadDir, file);
+
+            const mimeType = mime.lookup(filePath); // กำหนดค่าเริ่มต้น
+            console.log("MIME type:", mimeType);
+
+            // เช็คว่าเป็นไฟล์ (ไม่ใช่โฟลเดอร์)
+            const stat = fs.statSync(filePath);
+            if (stat.isFile()) {
+                console.log("stat.isFile()", files[index]);
+
+                //สร้าง filePart สำหรับไฟล์แต่ละไฟล์
+                const filePart = fileToGenerativePart(
+                    `upload_files/${files[index]}`,
+                    `${mimeType}`,
+                ); // เปลี่ยน mime type ตามความเหมาะสม
+                filesParts.push(filePart);
+            }
+        })
+        console.log("files", filesParts);
+    } catch (error) {
+        return res.status(401).json({ message: 'token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' });
+    }
+};
 
 
 router.post('/', verifyToken, async (req, res) => {
@@ -232,23 +272,13 @@ router.post('/upload_images', verifyToken, upload.single('photo'), async (req, r
 router.post('/upload_files', verifyToken, upload.single('file'), async (req, res) => {
 
     const prompt = req.body.text;
-    const file_name = req.body.file_name
-    fileTODBname = file_name
-
+    // const file_name = req.body.file_name
+    // fileTODBname = file_name
+    readFloder();
     try {
         if (prompt) {
 
-            // Note: The only accepted mime types are some image types, image/*.
-            const filePart = fileToGenerativePart(
-                `upload_files/${fileTODBname}`,
-                "application/pdf",
-            );
-
-            const imageParts = [
-                filePart
-            ];
-
-            const result = await model.generateContent([prompt, imageParts]);
+            const result = await model.generateContent([prompt, filesParts]);
 
             // console.log(result.response.text());
             let data = result.response.text()
@@ -258,7 +288,7 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
                     error: false,
                     // total_chat : text.length,
                     data: data,
-                    file_name: fileTODBname
+                    // file_name: fileTODBname
                 }
             )
         } else {
