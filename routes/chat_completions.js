@@ -44,11 +44,11 @@ function fileToGenerativePart(path, mimeType) {
 }
 
 
-async function saveToDB(save_chat, uid_chat, type_chat, uid) {
+async function saveToDB(save_chat, uid_chat, type_chat, uid, num) {
 
     await transaction.create({
         "uid": uid,               //สร้างข้อมูล
-        "id": JSON.stringify(new Date().getTime()),
+        "id": JSON.stringify(new Date().getTime()) + num,
         "uid_chat": uid_chat,
         "role": save_chat.role,
         "content": save_chat.text,
@@ -74,7 +74,7 @@ let chatHistory = [];
 let save_chat = []
 
 // middleware สำหรับตรวจสอบ token
-async function verifyToken (req, res, next) {
+async function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
 
     // ตรวจสอบว่า authHeader มีค่าหรือไม่ และเป็น Bearer token หรือไม่
@@ -104,12 +104,12 @@ async function verifyToken (req, res, next) {
             const api_key = user.api_key;
             // ใช้งาน api_key ต่อไปตามต้องการ
             genAI = new GoogleGenerativeAI(api_key);
-            console.log("genAI>>:/upload_images",genAI);
+            // console.log("genAI>>:/upload_images", genAI);
             model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         } else {
             return res.status(404).json({ message: 'ไม่พบผู้ใช้ในฐานข้อมูล' });
         }
-        
+
         next();
     } catch (error) {
         return res.status(401).json({ message: 'token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' });
@@ -166,10 +166,10 @@ router.post('/', verifyToken, async (req, res) => {
         chatHistory.push({ role: "model", parts: [{ text: result.response.text() }] });
 
         save_chat = { role: "user", text: message_req, timestamp: new Date(), type: type, imagename: imagename };
-        saveToDB(save_chat, uid_chat, type_chat, uid)
+        saveToDB(save_chat, uid_chat, type_chat, uid, 0)
 
         save_chat = { role: "model", text: result.response.text(), timestamp: new Date(), type: type, imagename: imagename };
-        saveToDB(save_chat, uid_chat, type_chat, uid)
+        saveToDB(save_chat, uid_chat, type_chat, uid, 3)
 
         // console.log('response', result.response.text());
         const text = result.response.text()
@@ -216,14 +216,14 @@ router.post('/upload_images', verifyToken, upload.single('photo'), async (req, r
 
     if (type === 'imageandtext') {
         save_chat = { role: "user", text: '', timestamp: new Date(), type: type, imagename: imageTODBname };
-        saveToDB(save_chat, uid_chat, type_chat, uid)
+        saveToDB(save_chat, uid_chat, type_chat, uid, 0)
     }
     save_chat = { role: "user", text: prompt, timestamp: new Date(), type: type, imagename: '' };
-    saveToDB(save_chat, uid_chat, type_chat, uid)
+    saveToDB(save_chat, uid_chat, type_chat, uid, 3)
 
 
     save_chat = { role: "model", text: data, timestamp: new Date(), type: type, imagename: '' };
-    saveToDB(save_chat, uid_chat, type_chat, uid)
+    saveToDB(save_chat, uid_chat, type_chat, uid, 6)
 
     res.json(
         {
@@ -239,33 +239,38 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
     const prompt = req.body.text;
     const file_name = req.body.file_name
     fileTODBname = file_name
-    if (prompt) {
 
-        // Note: The only accepted mime types are some image types, image/*.
-        const filePart = fileToGenerativePart(
-            `upload_files/${fileTODBname}`,
-            "application/pdf",
-        );
+    try {
+        if (prompt) {
 
-        const imageParts = [
-            filePart
-        ];
+            // Note: The only accepted mime types are some image types, image/*.
+            const filePart = fileToGenerativePart(
+                `upload_files/${fileTODBname}`,
+                "application/pdf",
+            );
 
-        const result = await model.generateContent([prompt, imageParts]);
+            const imageParts = [
+                filePart
+            ];
 
-        // console.log(result.response.text());
-        let data = result.response.text()
+            const result = await model.generateContent([prompt, imageParts]);
 
-        res.json(
-            {
-                error: false,
-                // total_chat : text.length,
-                data: data,
-                file_name: fileTODBname
-            }
-        )
-    } else {
-        res.json({ message: "Upload File Success" });
+            // console.log(result.response.text());
+            let data = result.response.text()
+
+            res.json(
+                {
+                    error: false,
+                    // total_chat : text.length,
+                    data: data,
+                    file_name: fileTODBname
+                }
+            )
+        } else {
+            res.json({ message: "Upload File Success" });
+        }
+    } catch (error) {
+        res.status(500).send({ msg: 'something went wrong!' });
     }
 
 })
