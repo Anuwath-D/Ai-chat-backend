@@ -14,16 +14,16 @@ let fileTODBname = ''
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
 
-        const pdfDirectory = 'upload_files'; 
+        const pdfDirectory = 'upload_files';
         const imagesDirectory = 'upload_images';
         const fileExtension = file.originalname.split('.').pop();
-        console.log('file.originalname',file.originalname);
+        console.log('file.originalname', file.originalname);
         if (fileExtension === 'pdf' || fileExtension === 'txt') {
-            
+
             if (!fs.existsSync(pdfDirectory)) {
-                fs.mkdirSync(pdfDirectory, { recursive: true }); 
+                fs.mkdirSync(pdfDirectory, { recursive: true });
             }
-            callback(null, pdfDirectory); 
+            callback(null, pdfDirectory);
         } else {
             // Check if the 'upload_images' folder exists, create it if not
             if (!fs.existsSync(imagesDirectory)) {
@@ -147,12 +147,12 @@ async function readFloder(req, res, next) {
             const filePath = path.join(uploadDir, file);
 
             const mimeType = mime.lookup(filePath); // กำหนดค่าเริ่มต้น
-            console.log("MIME type:", mimeType);
+            // console.log("MIME type:", mimeType);
 
             // เช็คว่าเป็นไฟล์ (ไม่ใช่โฟลเดอร์)
             const stat = fs.statSync(filePath);
             if (stat.isFile()) {
-                console.log("stat.isFile()", files[index]);
+                // console.log("stat.isFile()", files[index]);
 
                 //สร้าง filePart สำหรับไฟล์แต่ละไฟล์
                 const filePart = fileToGenerativePart(
@@ -162,7 +162,7 @@ async function readFloder(req, res, next) {
                 filesParts.push(filePart);
             }
         })
-        console.log("files", filesParts);
+        // console.log("files", filesParts);
     } catch (error) {
         return res.status(401).json({ message: 'token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' });
     }
@@ -266,7 +266,7 @@ router.post('/upload_images', verifyToken, upload.single('photo'), async (req, r
         saveToDB(save_chat, uid_chat, type_chat, uid, 0)
     }
     save_chat = { role: "user", text: prompt, timestamp: new Date(), type: type, imagename: '' };
-    saveToDB(save_chat, uid_chat, type_chat, uid, 3)
+    saveToDB(save_chat, uid_chat, type_chat, uid, 0)
 
 
     save_chat = { role: "model", text: data, timestamp: new Date(), type: type, imagename: '' };
@@ -284,35 +284,47 @@ router.post('/upload_images', verifyToken, upload.single('photo'), async (req, r
 router.post('/upload_files', verifyToken, upload.single('file'), async (req, res) => {
 
     const prompt = req.body.text;
-    // const file_name = req.body.file_name
-    // fileTODBname = file_name
-    readFloder();
+    const file_name = req.body.file_name
+    fileTODBname = file_name
+   
     try {
         if (prompt) {
             
+            let data = ''
+
+            if (fileTODBname == 'เลือกไฟล์ทั้งหมด') {
+                readFloder();
+                const result = await model.generateContent([prompt, filesParts]);
+                data = result.response.text()
+                console.log(1111111);
+
+            } else {
+                const filePart = fileToGenerativePart(
+                    `upload_files/${fileTODBname}`,
+                    (fileTODBname.split('.').pop()) === 'pdf' ? "application/pdf" : "text/plain",
+                );
+
+                const imageParts = [
+                    filePart
+                ];
+
+                const result = await model.generateContent([prompt, imageParts]);
+                data = result.response.text()
+                console.log(22222222);
+            }
             // Note: The only accepted mime types are some image types, image/*.
-            const filePart = fileToGenerativePart(
-                `upload_files/${fileTODBname}`,
-                (fileTODBname.split('.').pop()) === 'pdf'? "application/pdf":"text/plain" ,
-            );
 
-            const imageParts = [
-                filePart
-            ];
 
-            const result = await model.generateContent([prompt, imageParts]);
 
-            // const result = await model.generateContent([prompt, filesParts]);
 
             // console.log(result.response.text());
-            let data = result.response.text()
 
             res.json(
                 {
                     error: false,
                     // total_chat : text.length,
                     data: data,
-                    // file_name: fileTODBname
+                    file_name: fileTODBname
                 }
             )
         } else {
