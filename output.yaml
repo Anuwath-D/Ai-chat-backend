@@ -1,7 +1,7 @@
 - role: user
   parts:
-    - text: hello
+    - text: hello4
 - role: model
   parts:
     - text: |
-        Hello there! What can I do for you today? 
+        Hello! How can I help you today? 

@@ -44,36 +44,39 @@ function fileToGenerativePart(path, mimeType) {
 }
 
 
-async function saveToDB(save_chat, uid, type_chat) {
-    console.log('save_chat', save_chat);
+async function saveToDB(save_chat, uid_chat, type_chat, uid) {
 
-    await transaction.create({                       //สร้างข้อมูล
+    await transaction.create({
+        "uid": uid,               //สร้างข้อมูล
         "id": JSON.stringify(new Date().getTime()),
-        "uid": uid ? uid : uid_chat,
+        "uid_chat": uid_chat,
         "role": save_chat.role,
         "content": save_chat.text,
         "timestamp": save_chat.timestamp,
         "type": save_chat.type,
         "imagename": save_chat.imagename ? save_chat.imagename : '',
         "type_chat": type_chat,
-
     })
 }
 
 // Initialize models
 const models = initModels();
 const { transaction } = models;
+const { username } = models;
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+let genAI = null;
+let model = null;
+
 
 // สร้าง Array เพื่อเก็บประวัติการสนทนา
 let chatHistory = [];
 let save_chat = []
 
 // middleware สำหรับตรวจสอบ token
-const verifyToken = (req, res, next) => {
+async function verifyToken (req, res, next) {
     const authHeader = req.headers['authorization'];
-    
+
     // ตรวจสอบว่า authHeader มีค่าหรือไม่ และเป็น Bearer token หรือไม่
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'ไม่มี token หรือรูปแบบ token ไม่ถูกต้อง กรุณาเข้าสู่ระบบ' });
@@ -89,6 +92,24 @@ const verifyToken = (req, res, next) => {
 
         // ใส่ข้อมูลผู้ใช้จาก token เข้าไปใน request เพื่อใช้ใน endpoint ต่อไป
         req.user = decoded;
+
+        // ค้นหาผู้ใช้ในฐานข้อมูล
+        const user = await username.findOne({
+            where: { uid: req.user.uid },
+            attributes: ['api_key'] // เลือกเฉพาะคอลัมน์ api_key 
+        });
+
+        // ตรวจสอบว่าพบผู้ใช้หรือไม่
+        if (user) {
+            const api_key = user.api_key;
+            // ใช้งาน api_key ต่อไปตามต้องการ
+            genAI = new GoogleGenerativeAI(api_key);
+            console.log("genAI>>:/upload_images",genAI);
+            model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        } else {
+            return res.status(404).json({ message: 'ไม่พบผู้ใช้ในฐานข้อมูล' });
+        }
+        
         next();
     } catch (error) {
         return res.status(401).json({ message: 'token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' });
@@ -97,36 +118,28 @@ const verifyToken = (req, res, next) => {
 
 
 
-router.post('/', verifyToken , async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
+
     let idx = req.body.messages.length
     const message_req = req.body.messages[idx - 1].content;
-    // console.log('content : ', req.body.messages[idx - 1].content);
-    const uid = req.body.uid
+    const uid_chat = req.body.uid_chat
     const type = req.body.type
     const type_chat = req.body.type_chat
     const imagename = ''
-    // console.log('uid : ', uid);
+    const uid = req.user.uid;
 
-    // ตรวจสอบว่า api_key ถูกส่งมา
-    if (!req.body.api_key) {
-        return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
-    }
 
-    const api_key = req.body.api_key;
-    const genAI = new GoogleGenerativeAI(api_key);
-    console.log("genAI>>:",genAI);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const chat = model.startChat({
         history: [],
     });
 
     // // เพิ่มข้อความใหม่เข้าไปใน chatHistory
-    if (uid) {
+    if (uid_chat) {
         // ค้นหาข้อมูล
         const data = await transaction.findAll({
             attributes: ["role", "content"],
             where: {
-                uid: uid  //สำหรับ body
+                uid_chat: uid_chat  //สำหรับ body
             },
             order: [['timestamp', 'ASC']],
             // limit: 1
@@ -153,15 +166,15 @@ router.post('/', verifyToken , async (req, res) => {
         chatHistory.push({ role: "model", parts: [{ text: result.response.text() }] });
 
         save_chat = { role: "user", text: message_req, timestamp: new Date(), type: type, imagename: imagename };
-        saveToDB(save_chat, uid, type_chat)
+        saveToDB(save_chat, uid_chat, type_chat, uid)
 
         save_chat = { role: "model", text: result.response.text(), timestamp: new Date(), type: type, imagename: imagename };
-        saveToDB(save_chat, uid, type_chat)
+        saveToDB(save_chat, uid_chat, type_chat, uid)
 
-        console.log('response', result.response.text());
+        // console.log('response', result.response.text());
         const text = result.response.text()
-        console.log('chat', chat);
-        
+        // console.log('chat', chat);
+
         res.json(
             {
                 error: false,
@@ -184,43 +197,33 @@ router.post('/', verifyToken , async (req, res) => {
 
 router.post('/upload_images', verifyToken, upload.single('photo'), async (req, res) => {
 
-    // ตรวจสอบว่า api_key ถูกส่งมา
-    if (!req.body.api_key) {
-        return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
-    }
-    const api_key = req.body.api_key;
-    const genAI = new GoogleGenerativeAI(api_key);
-    console.log("genAI>>:/upload_images",genAI);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
     const prompt = req.body.text;
     const type = req.body.type;
-    const uid = req.body.uid;
+    const uid_chat = req.body.uid_chat;
     const type_chat = req.body.type_chat
+    const uid = req.user.uid;
     // Note: The only accepted mime types are some image types, image/*.
     const imagePart = fileToGenerativePart(
         `upload_images/${imageTODBname}`,
         "image/jpeg",
     );
 
-
-
     const result = await model.generateContent([prompt, imagePart]);
 
-    console.log('chat', chat);
+    // console.log('chat', chat);
 
     let data = result.response.text()
 
     if (type === 'imageandtext') {
         save_chat = { role: "user", text: '', timestamp: new Date(), type: type, imagename: imageTODBname };
-        saveToDB(save_chat, uid, type_chat)
+        saveToDB(save_chat, uid_chat, type_chat, uid)
     }
     save_chat = { role: "user", text: prompt, timestamp: new Date(), type: type, imagename: '' };
-    saveToDB(save_chat, uid, type_chat)
+    saveToDB(save_chat, uid_chat, type_chat, uid)
 
 
     save_chat = { role: "model", text: data, timestamp: new Date(), type: type, imagename: '' };
-    saveToDB(save_chat, uid, type_chat)
+    saveToDB(save_chat, uid_chat, type_chat, uid)
 
     res.json(
         {
@@ -232,16 +235,6 @@ router.post('/upload_images', verifyToken, upload.single('photo'), async (req, r
 })
 
 router.post('/upload_files', verifyToken, upload.single('file'), async (req, res) => {
-    // console.log('text', req.body.text);
-
-    // ตรวจสอบว่า api_key ถูกส่งมา
-    if (!req.body.api_key) {
-        return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
-    }
-    const api_key = req.body.api_key;
-    const genAI = new GoogleGenerativeAI(api_key);
-    console.log("genAI>>:/upload_files",genAI);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = req.body.text;
     const file_name = req.body.file_name
@@ -260,7 +253,7 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
 
         const result = await model.generateContent([prompt, imageParts]);
 
-        console.log(result.response.text());
+        // console.log(result.response.text());
         let data = result.response.text()
 
         res.json(
@@ -271,8 +264,8 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
                 file_name: fileTODBname
             }
         )
-    }else{
-        res.json({ message: "Upload File Success"});
+    } else {
+        res.json({ message: "Upload File Success" });
     }
 
 })

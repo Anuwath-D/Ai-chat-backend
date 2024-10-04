@@ -70,18 +70,17 @@ router.post('/login', async (req, res) => {
         }
 
         // สร้าง JWT Token
-        const token = jwt.sign({ uid: user.uid }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ uid: user.uid},process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // ส่ง Token กลับไป
-        res.status(200).json({ 
-            message: 'เข้าสู่ระบบสำเร็จ', 
+        res.status(200).json({
+            message: 'เข้าสู่ระบบสำเร็จ',
             data: {
                 user_uid: user.uid,
                 username: user.username,
-                email: user.email,
-                api_key: user.api_key
+                email: user.email
             },
-            token 
+            token
         });
 
     } catch (error) {

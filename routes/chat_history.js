@@ -3,10 +3,12 @@ const router = express.Router();
 const fs = require('fs');
 const initModels = require('../model_db/init_models');
 const path = require('path');
-
+const jwt = require('jsonwebtoken');
 // Initialize models
 const models = initModels();
 const { transaction } = models;
+const { username } = models;
+
 
 function fileToGenerativePart(path, mimeType) {
     return {
@@ -18,9 +20,9 @@ function fileToGenerativePart(path, mimeType) {
 }
 
 // middleware สำหรับตรวจสอบ token
-const verifyToken = (req, res, next) => {
+async function verifyToken (req, res, next) {
     const authHeader = req.headers['authorization'];
-    
+
     // ตรวจสอบว่า authHeader มีค่าหรือไม่ และเป็น Bearer token หรือไม่
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'ไม่มี token หรือรูปแบบ token ไม่ถูกต้อง กรุณาเข้าสู่ระบบ' });
@@ -48,7 +50,7 @@ router.get('/header', verifyToken, async (req, res, next) => {
         const whereCondition = {};
         // ค้นหาข้อมูล
         const response = await transaction.findAll({
-            attributes: ["uid", "content", "type", "timestamp", "type_chat"],
+            attributes: ["uid_chat", "content", "type", "timestamp", "type_chat"],
             // where: whereCondition,
             order: [['timestamp', 'DESC']],
             // limit: 1
@@ -62,14 +64,14 @@ router.get('/header', verifyToken, async (req, res, next) => {
         const formattedResponse = Object.values(
             arrData.reduce((acc, data) => {
                 // ตรวจสอบว่ามี uid ใน acc หรือไม่ ถ้าไม่มีก็สร้างใหม่
-                if (!acc[data.uid]) {
-                    acc[data.uid] = { uid: data.uid, content: [], type: [], timestamp: [], type_chat: [] };
+                if (!acc[data.uid_chat]) {
+                    acc[data.uid_chat] = { uid_chat: data.uid_chat, content: [], type: [], timestamp: [], type_chat: [] };
                 }
                 // เพิ่ม id ของ data ลงใน array ที่ตรงกับ uid
-                acc[data.uid].content.push(data.content);
-                acc[data.uid].type.push(data.type);
-                acc[data.uid].timestamp.push(data.timestamp);
-                acc[data.uid].type_chat.push(data.type_chat);
+                acc[data.uid_chat].content.push(data.content);
+                acc[data.uid_chat].type.push(data.type);
+                acc[data.uid_chat].timestamp.push(data.timestamp);
+                acc[data.uid_chat].type_chat.push(data.type_chat);
 
 
                 return acc;
@@ -80,7 +82,7 @@ router.get('/header', verifyToken, async (req, res, next) => {
 
         for (const arr of formattedResponse) {
             let data = {
-                uid: arr.uid,
+                uid_chat: arr.uid_chat,
                 content: arr.content[arr.content.length - 1] ? arr.content[arr.content.length - 1] : arr.content[arr.content.length - 2],
                 type: arr.type[arr.type.length - 1],
                 timestamp: arr.timestamp[arr.timestamp.length - 1],
@@ -106,13 +108,13 @@ router.get('/header', verifyToken, async (req, res, next) => {
 
 router.get('/detail', verifyToken, async function (req, res, next) {    //verrify auth เพื่อตรวจสอบ Token
     try {
-        const uid = req.query;
-        console.log('uid', uid);
+        const uid_chat = req.query;
+        console.log('uid_chat', uid_chat);
 
         // ค้นหาข้อมูล
         const data = await transaction.findAll({
             // attributes: ["target"],
-            where: uid, //สำหรับ query
+            where: uid_chat, //สำหรับ query
             order: [['timestamp', 'ASC']],
             // limit: 1
         });
@@ -129,7 +131,7 @@ router.get('/detail', verifyToken, async function (req, res, next) {    //verrif
                 console.log('imagePart', imagePart.inlineData.data);
                 arrdata.push({
                     id: arr.id,
-                    uid: arr.uid,
+                    uid_chat: arr.uid_chat,
                     role: arr.role,
                     content: arr.content,
                     timestamp: arr.timestamp,
@@ -139,7 +141,7 @@ router.get('/detail', verifyToken, async function (req, res, next) {    //verrif
             } else {
                 arrdata.push({
                     id: arr.id,
-                    uid: arr.uid,
+                    uid_chat: arr.uid_chat,
                     role: arr.role,
                     content: arr.content,
                     timestamp: arr.timestamp,
