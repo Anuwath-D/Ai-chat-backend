@@ -1,7 +1,0 @@
-- role: user
-  parts:
-    - text: hello4
-- role: model
-  parts:
-    - text: |
-        Hello! How can I help you today? 

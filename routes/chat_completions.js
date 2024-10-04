@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
-const yaml = require('js-yaml');
 const jwt = require('jsonwebtoken');
 
 const initModels = require('../model_db/init_models');
@@ -182,10 +181,6 @@ router.post('/', verifyToken, async (req, res) => {
                 data: text
             }
         )
-
-        // chatHistory เขียนใส่ yaml
-        const yamlStr = yaml.dump(chatHistory);
-        fs.writeFileSync('output.yaml', yamlStr, 'utf8');
 
 
     } catch (error) {

@@ -7,14 +7,9 @@ var http = require('http');
 
 const cors = require('cors')
 
-// database
-const db = require('./database/db')
-const initModels = require('./model_db/init_models')()
 
 var chat_completions = require('./routes/chat_completions')
-var end_chat = require('./routes/end_chat')
 var chat_history = require('./routes/chat_history')
-var model = require('./routes/model')
 var auth = require('./routes/auth')
 
 var app = express();
@@ -34,9 +29,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/v1/chat/completions', chat_completions);
-app.use('/api/v1/chat/end', end_chat);
 app.use('/api/v1/chat/history', chat_history);
-app.use('/api/v1/chat/model', model);
 app.use('/api/v1/auth', auth);
 
 app.use(function (req, res, next) {
