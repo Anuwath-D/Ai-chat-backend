@@ -13,11 +13,12 @@ let imageTODBname = ''
 let fileTODBname = ''
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
-
+        const decodedOriginalName = Buffer.from(file.originalname, 'binary').toString('utf-8');
+        console.log('decodedOriginalName', decodedOriginalName);
         const pdfDirectory = 'upload_files';
         const imagesDirectory = 'upload_images';
-        const fileExtension = file.originalname.split('.').pop();
-        console.log('file.originalname', file.originalname);
+        const fileExtension = decodedOriginalName.split('.').pop();
+        console.log('file.originalname', decodedOriginalName);
         if (fileExtension === 'pdf' || fileExtension === 'txt') {
 
             if (!fs.existsSync(pdfDirectory)) {
@@ -34,9 +35,10 @@ const storage = multer.diskStorage({
 
     },
     filename: function (req, file, callback) {
-        const fileExtension = file.originalname.split('.').pop();
+        const decodedOriginalName = Buffer.from(file.originalname, 'binary').toString('utf-8');
+        const fileExtension = decodedOriginalName.split('.').pop();
         if (fileExtension === 'pdf' || fileExtension === 'txt') {
-            fileTODBname = file.originalname
+            fileTODBname = decodedOriginalName
             callback(null, fileTODBname) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
         } else {
             const uniqueKey = Date.now() + '-' + Math.round(Math.random() * 1E9)
@@ -86,7 +88,7 @@ let model = null;
 
 // สร้าง Array เพื่อเก็บประวัติการสนทนา
 let chatHistory = [];
-let save_chat = []
+let save_chat = [];
 // สร้าง array สำหรับ imageParts
 let filesParts = [];
 
@@ -312,12 +314,6 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
                 data = result.response.text()
                 console.log(22222222);
             }
-            // Note: The only accepted mime types are some image types, image/*.
-
-
-
-
-            // console.log(result.response.text());
 
             res.json(
                 {
