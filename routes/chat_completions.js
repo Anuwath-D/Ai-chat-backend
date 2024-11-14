@@ -11,12 +11,14 @@ const initModels = require('../model_db/init_models');
 const multer = require('multer')
 let imageTODBname = ''
 let fileTODBname = ''
+let audioTODBname = ''
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
         const decodedOriginalName = Buffer.from(file.originalname, 'binary').toString('utf-8');
         console.log('decodedOriginalName', decodedOriginalName);
         const pdfDirectory = 'upload_files';
         const imagesDirectory = 'upload_images';
+        const audioDirectory = 'upload_audio';
         const fileExtension = decodedOriginalName.split('.').pop();
         console.log('file.originalname', decodedOriginalName);
         if (fileExtension === 'pdf' || fileExtension === 'txt') {
@@ -25,6 +27,12 @@ const storage = multer.diskStorage({
                 fs.mkdirSync(pdfDirectory, { recursive: true });
             }
             callback(null, pdfDirectory);
+        } else if (fileExtension === 'mp3') {
+
+            if (!fs.existsSync(audioDirectory)) {
+                fs.mkdirSync(audioDirectory, { recursive: true });
+            }
+            callback(null, audioDirectory);
         } else {
             // Check if the 'upload_images' folder exists, create it if not
             if (!fs.existsSync(imagesDirectory)) {
@@ -40,6 +48,9 @@ const storage = multer.diskStorage({
         if (fileExtension === 'pdf' || fileExtension === 'txt') {
             fileTODBname = decodedOriginalName
             callback(null, fileTODBname) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
+        } else if (fileExtension === 'mp3') {
+            audioTODBname = 'audio.mp3'
+            callback(null, audioTODBname) //ให้ใช้ชื่อไฟล์ original เป็นชื่อหลังอัพโหลด
         } else {
             const uniqueKey = Date.now() + '-' + Math.round(Math.random() * 1E9)
             const img_name = 'Images' + '-' + uniqueKey + '.jpg'
@@ -288,10 +299,10 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
     const prompt = req.body.text;
     const file_name = req.body.file_name
     fileTODBname = file_name
-   
+
     try {
         if (prompt) {
-            
+
             let data = ''
 
             if (fileTODBname == 'เลือกไฟล์ทั้งหมด') {
@@ -327,6 +338,35 @@ router.post('/upload_files', verifyToken, upload.single('file'), async (req, res
             res.json({ message: "Upload File Success" });
         }
     } catch (error) {
+        res.status(500).send({ msg: 'something went wrong!' });
+    }
+
+})
+
+
+router.post('/upload_audio', verifyToken, upload.single('audio'), async (req, res) => {
+
+    const prompt = req.body.text;
+    // ช่วยบอกระดับความดังเป็นเดซิเบลเเละตอบว่ามีเสียงอะไรบ้าง ตอบเป็นภาษาไทย
+    try {
+        const filePart = fileToGenerativePart(
+            `upload_audio/${audioTODBname}`,
+            "audio/mp3",
+        );
+        // Generate content using the model
+        const result = await model.generateContent([prompt, filePart]);
+        console.log('result',result);
+        
+
+        // Assuming result has a .text property or response text is accessible
+        const data = result.response.text();
+
+        res.json({
+            error: false,
+            data: data,
+        });
+    } catch (error) {
+        console.error("Error:", error); // Log the error for debugging
         res.status(500).send({ msg: 'something went wrong!' });
     }
 
