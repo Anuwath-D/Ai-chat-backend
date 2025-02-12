@@ -32,6 +32,10 @@ module.exports = function () {
     api_key: {
       type: DataTypes.STRING,
       allowNull: false,  // สามารถเป็นค่า NULL ได้
+    },
+    role: {
+      type: DataTypes.STRING(100),
+      allowNull: true,  // สามารถเป็นค่า NULL ได้
     }
   }, {
     tableName: 'username',  // กำหนดชื่อตาราง
