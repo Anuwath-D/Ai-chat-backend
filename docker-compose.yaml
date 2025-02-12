@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    restart: always
+    ports:
+      - '45432:5432'
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: aichat_backend
+    volumes:
+      # - /data/timescaledb:/var/lib/postgresql/data
+      - aichat_backend:/var/lib/postgresql/data
+    networks:
+      - aichat_backend
+
+networks:
+  aichat_backend:
+
+volumes:
+  aichat_backend:

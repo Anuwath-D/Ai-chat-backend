@@ -1,0 +1,13 @@
+/node_modules
+.env
+docker-compose.yaml
+config.yaml
+
+# file
+upload_file/
+
+#images
+upload_images/
+
+#images
+upload_audio/
