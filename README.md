@@ -27,5 +27,5 @@ docker-compose up -d
 
 ### 3. เรียกใช้งานโปรเจค  (โปรดติดตั้งโปรเจค Ai-chat-Backend ก่อน)
 
-```npm run dev```
+```npm run dev
 
