@@ -16,14 +16,15 @@ AI-Chat เป็นแอปพลิเคชันแชทบอทที่
 
 ### 2. โคลนโปรเจคและติดตั้งแพ็กเกจ
 
-```git clone https://github.com/Anuwath-D/Ai-chat-backend.git
+```
+git clone https://github.com/Anuwath-D/Ai-chat-backend.git
 
 cd Ai-chat-backtend
 
 npm install
 
 docker-compose up -d
-
+```
 
 ### 3. เรียกใช้งานโปรเจค  (โปรดติดตั้งโปรเจค Ai-chat-Backend ก่อน)
 
