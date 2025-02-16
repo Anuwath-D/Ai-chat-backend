@@ -1,6 +1,5 @@
 # Ai-chat-backend
-Code Backend สำหรับ AI-Chat 
-AI-Chat เป็นแอปพลิเคชันแชทบอทที่ใช้ Google API ในการสร้างข้อความโต้ตอบอัจฉริยะ
+Code Backend สำหรับ AI-Chat ใช้เชื่อมต่อกับ Google API ในการสร้างข้อความโต้ตอบอัจฉริยะ
 
 ## วิธีติดตั้งและใช้งาน
 
